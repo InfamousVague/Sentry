@@ -78,7 +78,10 @@ struct ContentView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 1) {
-                Text("\(store.items.count) persistence items")
+                HStack(spacing: 3) {
+                    PaddedCount(store.items.count)
+                    Text("persistence items")
+                }
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                 Text(store.scanning ? "scanning…" : "audited \(lastScanText)")
@@ -147,7 +150,7 @@ struct ContentView: View {
                 .tracking(1)
                 .foregroundStyle(.secondary)
             Spacer()
-            Text("\(count)")
+            PaddedCount(count)
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
