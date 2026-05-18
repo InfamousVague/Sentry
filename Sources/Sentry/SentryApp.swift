@@ -23,17 +23,22 @@ struct SentryApp: App {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
         let symbol = base.withSymbolConfiguration(config) ?? base
         // The menu bar is only ~22pt thick and `shield.lefthalf.filled`
-        // is a tall glyph, so drawing it at its natural size clipped
-        // the top and bottom. Redraw into a fixed 16pt-tall canvas
-        // (aspect preserved) so it always fits with breathing room.
+        // is a tall glyph, so fit it into a 16pt-tall canvas (aspect
+        // preserved). Use the resolution-independent drawing-handler
+        // initializer: the old lockFocus()/unlockFocus() path baked a
+        // 1× bitmap the menu bar then upscaled on Retina — that's what
+        // made the icon look blurry. The handler re-runs per backing
+        // scale, so the template stays crisp.
         let h: CGFloat = 16
         let src = symbol.size
         let w = src.height > 0 ? (h * src.width / src.height) : h
-        let fitted = NSImage(size: NSSize(width: w, height: h))
-        fitted.lockFocus()
-        symbol.draw(in: NSRect(x: 0, y: 0, width: w, height: h),
-                    from: .zero, operation: .sourceOver, fraction: 1)
-        fitted.unlockFocus()
+        let fitted = NSImage(
+            size: NSSize(width: w, height: h), flipped: false
+        ) { rect in
+            symbol.draw(in: rect, from: .zero,
+                        operation: .sourceOver, fraction: 1)
+            return true
+        }
         fitted.isTemplate = true
         return fitted
     }()
