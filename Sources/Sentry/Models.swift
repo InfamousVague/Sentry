@@ -29,8 +29,24 @@ struct PersistenceItem: Identifiable, Hashable {
     let name: String         // Label / login-item name / cron line / rc filename
     let detail: String       // target binary path, command, or hash summary
     let signature: SignatureStatus
+    /// The persistence artifact's own file path (plist / rc file); nil for
+    /// login items and cron lines.
+    let path: String?
+    /// The target binary the item launches, when resolvable.
+    let program: String?
+    /// True when this is a launch item Sentry has disabled (a `.sentry-disabled`
+    /// file) — shown so the user can Restore it.
+    let disabled: Bool
 
     var id: String { key }
+
+    var isLaunchd: Bool { source == .launchAgent || source == .launchDaemon }
+
+    /// Can Sentry block/disable this kind of item?
+    var canBlock: Bool {
+        guard !disabled else { return false }
+        return isLaunchd || source == .loginItem
+    }
 }
 
 @MainActor
@@ -41,6 +57,8 @@ final class SentryStore {
     var scanning = false
     /// Stable key the user asked to jump to (set from a notification click).
     var focusedKey: String?
+    /// Last action failure, surfaced to the UI then cleared.
+    var lastError: String?
 
     @ObservationIgnored private var seenKeys: Set<String> = []
     @ObservationIgnored private var firstScanDone = false
@@ -67,6 +85,41 @@ final class SentryStore {
             let scanned = PersistenceScanner.scan()
             await MainActor.run { self.applyScan(scanned) }
         }
+    }
+
+    // MARK: - Actions (user-initiated, confirmed in the UI)
+
+    func reveal(_ item: PersistenceItem) {
+        PersistenceActions.reveal(item)
+    }
+
+    func copyPath(_ item: PersistenceItem) {
+        PersistenceActions.copyPath(item)
+    }
+
+    func inspectText(_ item: PersistenceItem) -> String {
+        PersistenceActions.inspect(item)
+    }
+
+    /// Disable a launch item (unload + rename to `.sentry-disabled`) or
+    /// remove a login item. Reversible for launch items via `restore`.
+    func block(_ item: PersistenceItem) {
+        do {
+            try PersistenceActions.block(item)
+        } catch {
+            lastError = (error as? PersistenceError)?.message ?? error.localizedDescription
+        }
+        refresh()
+    }
+
+    /// Rename a Sentry-disabled launch item back into place.
+    func restore(_ item: PersistenceItem) {
+        do {
+            try PersistenceActions.restore(item)
+        } catch {
+            lastError = (error as? PersistenceError)?.message ?? error.localizedDescription
+        }
+        refresh()
     }
 
     private func applyScan(_ scanned: [PersistenceItem]) {

@@ -31,16 +31,29 @@ enum PersistenceScanner {
             guard let entries = try? fm.contentsOfDirectory(
                 at: dir, includingPropertiesForKeys: nil
             ) else { continue }
-            for url in entries where url.pathExtension == "plist" {
-                items.append(parseLaunchPlist(url, source: source))
+            for url in entries {
+                if url.pathExtension == "plist" {
+                    items.append(parseLaunchPlist(url, source: source, disabled: false))
+                } else if url.lastPathComponent.hasSuffix(".plist.sentry-disabled") {
+                    items.append(parseLaunchPlist(url, source: source, disabled: true))
+                }
             }
         }
         return items
     }
 
-    private static func parseLaunchPlist(_ url: URL, source: PersistenceSource) -> PersistenceItem {
-        let path = url.path
-        var label = url.deletingPathExtension().lastPathComponent
+    private static func parseLaunchPlist(
+        _ url: URL, source: PersistenceSource, disabled: Bool
+    ) -> PersistenceItem {
+        let onDiskPath = url.path
+        // Stable identity uses the *original* plist path even when disabled,
+        // so a blocked item keeps the same key (and Restore round-trips).
+        let suffix = ".sentry-disabled"
+        let originalPath = disabled && onDiskPath.hasSuffix(suffix)
+            ? String(onDiskPath.dropLast(suffix.count))
+            : onDiskPath
+        var label = URL(fileURLWithPath: originalPath)
+            .deletingPathExtension().lastPathComponent
         var target = ""
         var runAtLoad = false
 
@@ -58,7 +71,7 @@ enum PersistenceScanner {
             if let ral = plist["RunAtLoad"] as? Bool { runAtLoad = ral }
         } else {
             // Binary plist or unreadable XML — fall back to plutil → JSON.
-            if let parsed = plutilJSON(path) {
+            if let parsed = plutilJSON(onDiskPath) {
                 if let l = parsed["Label"] as? String { label = l }
                 if let program = parsed["Program"] as? String {
                     target = program
@@ -76,10 +89,13 @@ enum PersistenceScanner {
 
         return PersistenceItem(
             source: source,
-            key: "agent:\(path)",
+            key: "agent:\(originalPath)",
             name: label,
-            detail: detail,
-            signature: sig
+            detail: disabled ? "disabled by Sentry  ·  \(detail)" : detail,
+            signature: sig,
+            path: onDiskPath,
+            program: target.isEmpty ? nil : target,
+            disabled: disabled
         )
     }
 
@@ -115,7 +131,10 @@ enum PersistenceScanner {
                 // Login-item targets aren't reliably resolvable via AppleScript
                 // without extra entitlements; classify by name is not possible,
                 // so we report presence and leave signature unknown.
-                signature: .unknown
+                signature: .unknown,
+                path: nil,
+                program: nil,
+                disabled: false
             )
         }
     }
@@ -138,7 +157,10 @@ enum PersistenceScanner {
                 key: "cron:\(hash)",
                 name: "crontab entry",
                 detail: line,
-                signature: .unknown
+                signature: .unknown,
+                path: nil,
+                program: nil,
+                disabled: false
             )
         }
     }
@@ -163,7 +185,10 @@ enum PersistenceScanner {
                     key: "shellrc:\(name):\(hex.prefix(12))",
                     name: name,
                     detail: "sha256 \(hex.prefix(12))…  ·  \(data.count) bytes",
-                    signature: .unknown
+                    signature: .unknown,
+                    path: url.path,
+                    program: nil,
+                    disabled: false
                 )
             )
         }

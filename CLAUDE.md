@@ -1,6 +1,6 @@
 # sentry (native)
 
-Native macOS menu-bar persistence/launch-item auditor. Enumerates LaunchAgents/Daemons, login items, cron, and shell rc files, classifies each target binary's code-signature/notarization status, and notifies on NEW or CHANGED persistence. Swift + SwiftUI, `NSStatusItem`/`NSPopover`, no third-party dependencies.
+Native macOS menu-bar persistence/launch-item auditor. Enumerates LaunchAgents/Daemons, login items, cron, and shell rc files, classifies each target binary's code-signature/notarization status, and notifies on NEW or CHANGED persistence. Per-item actions: Inspect, Reveal, Copy Path, and reversible **Block** (launch items unloaded + renamed to `.sentry-disabled`, restorable; login items removed) — all user-initiated and confirmed. Swift + SwiftUI, `NSStatusItem`/`NSPopover`, no third-party dependencies.
 
 ## Commit Convention
 Angular commits required with scope. See @.claude/rules/commit-rules.md for details.
@@ -14,6 +14,7 @@ See @.claude/rules/code-style.md
 - `Sources/Sentry/Models.swift` — model types + `SentryStore` (`@Observable`, `@MainActor`): 8s `Timer` poll, snapshot diff, first-scan guard.
 - `Sources/Sentry/PersistenceScanner.swift` — enumerates LaunchAgents/Daemons (`PropertyListSerialization`), login items (`osascript`), cron (`crontab -l`), shell rc files (content hash).
 - `Sources/Sentry/Signature.swift` — `spctl --assess` / `codesign -dv` wrapper → notarized / signed / unsigned classification.
+- `Sources/Sentry/PersistenceActions.swift` — user-initiated side effects: reveal, copy, inspect, block (unload + `.sentry-disabled` rename, or login-item removal), restore. System-domain items escalate via an `osascript` admin prompt.
 - `Sources/Sentry/Notifier.swift` — `UNUserNotificationCenter` wrapper; carries a stable focus key.
 - `Sources/Sentry/ContentView.swift` — the menu-bar panel UI (sections per source, signature badges).
 
