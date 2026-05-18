@@ -14,6 +14,7 @@ struct ContentView: View {
             footer
         }
         .frame(width: 380, height: 560)
+        .glassScrollers()
         .sheet(item: $inspectItem) { item in
             InspectSheet(title: item.name, text: store.inspectText(item)) {
                 inspectItem = nil
