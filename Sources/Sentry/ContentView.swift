@@ -158,24 +158,25 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 10) {
             Button {
                 store.refresh()
             } label: {
-                Label("Rescan", systemImage: "arrow.clockwise")
-                    .font(.system(size: 11))
+                Image(systemName: "arrow.clockwise")
             }
-            .buttonStyle(.plain)
+            .controlSize(.small)
+            .help("Rescan")
             Spacer()
-            Button("Quit Sentry") {
+            Button {
                 NSApplication.shared.terminate(nil)
+            } label: {
+                Image(systemName: "power")
             }
-            .font(.system(size: 11))
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .controlSize(.small)
+            .help("Quit Sentry")
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.vertical, 9)
     }
 }
 
