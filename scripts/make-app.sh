@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Builds a release binary and assembles Sentry.app — a menu-bar agent
-# (LSUIElement, no Dock icon). The menu-bar glyph is an SF Symbol, so
-# there are no icon assets to bundle.
+# (LSUIElement, no Dock icon). The menu-bar glyph is an SF Symbol; the
+# app/Finder icon is baked from art/AppIcon-source.png.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 APP="$ROOT/Sentry.app"
-VERSION="0.1.2"
+SRC_ICON="$ROOT/art/AppIcon-source.png"
+VERSION="0.1.3"
 # Same Developer ID as Port/Blip ("Matt Wisniewski, F6ZAL7ANAD"). Override
 # with SIGN_IDENTITY=- for an ad-hoc local build.
 SIGN_IDENTITY="${SIGN_IDENTITY:-0948896DC970503ADEF5B5070E0BB3E9D9047757}"
@@ -21,7 +22,18 @@ echo "› assembling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# Executable only — no resource bundle (SF Symbol icon, no assets).
+# App icon: source PNG → .iconset → .icns (native sips + iconutil).
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for spec in "16:16x16" "32:16x16@2x" "32:32x32" "64:32x32@2x" \
+            "128:128x128" "256:128x128@2x" "256:256x256" "512:256x256@2x" \
+            "512:512x512" "1024:512x512@2x"; do
+  px="${spec%%:*}"; name="${spec##*:}"
+  sips -z "$px" "$px" "$SRC_ICON" --out "$ICONSET/icon_${name}.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+
+# Executable (single Mach-O; the menu-bar glyph is an SF Symbol).
 cp "$BIN/Sentry" "$APP/Contents/MacOS/Sentry"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -33,6 +45,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Sentry</string>
   <key>CFBundleIdentifier</key><string>com.mattssoftware.sentry</string>
   <key>CFBundleExecutable</key><string>Sentry</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
