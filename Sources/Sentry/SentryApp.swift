@@ -16,14 +16,26 @@ struct SentryApp: App {
     /// active menu-bar appearance (dark on light bars, light on dark).
     /// No bundled asset — the SF Symbol ships with the OS.
     static let menuBarIcon: NSImage = {
-        let image = NSImage(
+        let base = NSImage(
             systemSymbolName: "shield.lefthalf.filled",
             accessibilityDescription: "Sentry"
         ) ?? NSImage()
-        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
-        let configured = image.withSymbolConfiguration(config) ?? image
-        configured.isTemplate = true
-        return configured
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        let symbol = base.withSymbolConfiguration(config) ?? base
+        // The menu bar is only ~22pt thick and `shield.lefthalf.filled`
+        // is a tall glyph, so drawing it at its natural size clipped
+        // the top and bottom. Redraw into a fixed 16pt-tall canvas
+        // (aspect preserved) so it always fits with breathing room.
+        let h: CGFloat = 16
+        let src = symbol.size
+        let w = src.height > 0 ? (h * src.width / src.height) : h
+        let fitted = NSImage(size: NSSize(width: w, height: h))
+        fitted.lockFocus()
+        symbol.draw(in: NSRect(x: 0, y: 0, width: w, height: h),
+                    from: .zero, operation: .sourceOver, fraction: 1)
+        fitted.unlockFocus()
+        fitted.isTemplate = true
+        return fitted
     }()
 
     /// Same glyph for in-app branding (rendered with the accent tint).
