@@ -13,7 +13,7 @@ struct ContentView: View {
             Divider()
             footer
         }
-        .frame(width: 380, height: 560)
+        .frame(width: 340, height: 540)
         .glassScrollers()
         .sheet(item: $inspectItem) { item in
             InspectSheet(title: item.name, text: store.inspectText(item)) {
@@ -66,7 +66,7 @@ struct ContentView: View {
     private var header: some View {
         HStack(alignment: .center) {
             HStack(alignment: .center, spacing: 6) {
-                Image(nsImage: SentryApp.appIcon)
+                Image(nsImage: SentryBrand.appIcon)
                     .resizable()
                     .interpolation(.high)
                     .frame(width: 16, height: 16)

@@ -36,6 +36,17 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 # Executable (single Mach-O; the menu-bar glyph is an SF Symbol).
 cp "$BIN/Sentry" "$APP/Contents/MacOS/Sentry"
 
+# ── Embed + (below) sign the SuiteKit contract and this
+# app's pane dylib so the MattsSoftware launcher can load
+# the SAME code out of this installed .app. rpath lets the
+# bundled exe find them under Contents/Frameworks.
+mkdir -p "$APP/Contents/Frameworks"
+cp "$BIN/libSuiteKit.dylib" "$APP/Contents/Frameworks/"
+cp "$BIN/libSentryPane.dylib" "$APP/Contents/Frameworks/"
+if [ -d "$BIN/SentryPane_SentryPane.bundle" ]; then cp -R "$BIN/SentryPane_SentryPane.bundle" "$APP/Contents/Frameworks/"; fi
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Sentry" 2>/dev/null || true
+
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -60,6 +71,10 @@ PLIST
 # Sign with the Developer ID (hardened runtime, distribution-ready).
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
   # Inside-out, no --deep (single Mach-O, nothing nested to recurse).
+  codesign --force --options runtime --timestamp \
+    --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/libSuiteKit.dylib"
+  codesign --force --options runtime --timestamp \
+    --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/libSentryPane.dylib"
   codesign --force --options runtime --timestamp \
     --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/Sentry"
   codesign --force --options runtime --timestamp \

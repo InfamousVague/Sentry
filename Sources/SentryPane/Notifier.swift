@@ -28,7 +28,7 @@ enum Notifier {
         }
         body += ". Click to inspect in Sentry."
         content.body = body
-        content.userInfo = ["sentryKey": item.key]
+        content.userInfo = ["sentryKey": item.key, "suitePane": "sentry", "suiteFocus": item.key]
         send(id: "sentry-\(item.key)", content: content)
     }
 
